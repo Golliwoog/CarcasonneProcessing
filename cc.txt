@@ -1,0 +1,164 @@
+enum ttype{ // as an Id since I dk how to reliably use the class-names in code
+  GTile(),
+  Street(),
+  Grass();
+}
+abstract class Tile{ // every kind of tile-to-be-placable inherits from this class. More or less an Enum-class
+  PImage       img; 
+  final ttype  up,right,down,left; // up right down left
+  public void   setImg(PImage img){this.img=img;}
+  public PImage getImg(){return this.img;}
+  public void   draw(float x, float y, int w, int h){image(this.getImg(),x,y,w,h);}
+  Tile(ttype up, ttype right, ttype down, ttype left){this.up=up;this.right=right;this.down=down;this.left=left;}
+}
+abstract class GTile extends Tile{// the grid in the Map is made out if these tiles who store their 'Tile'-type.
+  final PVector gridPos;
+  Tile          tile = null;
+  GTile(PVector pos){
+    super(ttype.GTile,ttype.GTile,ttype.GTile,ttype.GTile);
+    this.gridPos=pos;
+    this.setImg(loadImage("GTile.png"));
+  }
+  public boolean  isFree(){return tile == null;}
+  public void     setTile(Tile t){this.tile = t;} // set the Tile t
+  public PImage   getImg(){return (this.isFree()?this.img:this.getTile().getImg());}
+  public Tile     getTile(){return this.tile;} // get the Tile t
+  public void     draw(float x0, float y0, int xScale, int yScale){super.draw(this.gridPos.x*xScale+x0,this.gridPos.y*yScale+y0,xScale,yScale);}
+  public abstract boolean canInherit(Tile t); // returns true if GTile can be Tile t
+  public abstract Tile[]  canInherit(); // returns all Tiles that can be placed on it
+  public abstract GTile[] neighbours(PVector[] poss); // returns in GTile[i] the GTile at poss[i] relative to the current GTile
+}
+abstract class Map{
+  // in carcasonne, there is always the same starting-tile. For us, it is the center, e.g. Pos(0,0).
+  public abstract Tile      getTileToBePlaced(); // returns the current Tile to be placed
+  public abstract void      placeTile(Tile t, PVector pos); // places the Tile t at position pos.x,y
+  public abstract GTile[]   getAllValidPositions(Tile t); // returns all GTiles on which you can place Tile t
+  public abstract Tile      getTile(PVector pos); // returns the Tile t at pos.x,y, if there is none, return null
+  public abstract GTile[][] tileMap(); // returns a matrix of all tiles in the game
+}
+abstract class Player{
+  final color col; // basically Player-Group-ID
+  Player(color col){this.col = col;}
+  public abstract PVector placeTile(Tile t, Map m); // returns the position where Tile t should be placed on Map m
+}
+
+
+
+class GrassStreetUp extends Tile{
+  GrassStreetUp(){
+    super(ttype.Street,ttype.Grass,ttype.Street,ttype.Grass);
+    this.setImg(loadImage("Street_up.png"));
+  }
+}
+class GrassStreetUpLeft extends Tile{
+  GrassStreetUpLeft(){
+    super(ttype.Grass,ttype.Grass,ttype.Street,ttype.Street);
+    this.setImg(loadImage("Street_up_left.png"));
+  }
+}
+
+
+class GTileImpl extends GTile{
+  GTileImpl(PVector pos){super(pos);}
+  public boolean isFree(){return tile == null;}
+  public  boolean canInherit(Tile t){return true;} // returns true if GTile can be Tile t
+  public  Tile[] canInherit(){return new Tile[0];}// returns all Tiles that can be placed on it
+  public  GTile[] neighbours(PVector[] poss){return new GTile[0];} // returns in GTile[i] the GTile at poss[i] relative to the current GTile 
+}
+class MapImpl extends Map{
+  GTile[][] map;
+  MapImpl(){
+    map = new GTile[9][9];
+    for(int i=0;i<9;i++){
+      for(int u=0;u<9;u++){
+        map[i][u] = new GTileImpl(new PVector(i-5,u-5));
+      }
+    }
+  }
+  public Tile getTileToBePlaced(){return new GrassStreetUp();} // returns the current Tile to be placed
+  public void placeTile(Tile t, PVector pos){this.map[int(pos.x+5)][int(pos.y+5)].setTile(t);} // places the Tile t at position pos.x,y
+  public GTile[] getAllValidPositions(Tile t){return new GTile[0];} // returns all GTiles on which you can place Tile t
+  public GTile getTile(PVector pos){return null;} // returns the Tile t at pos.x,y, if there is none, return null
+  public GTile[][] tileMap(){return this.map;} // returns a matrix of all tiles in the game
+}
+
+class VisualMap extends MapImpl{ // visual
+  int x,y,w,h,res;
+  public VisualMap(int x, int y, int w, int h, int res){
+    this.setDim(x,y,w,h);
+    this.setRes(res);
+  }
+  public void setDim(int x, int y, int w, int h){
+    this.x = x;
+    this.y = y;
+    this.w = w;
+    this.h = h;
+  }
+  public void setRes(int res){
+    this.res = w/res;;
+  }
+  public void draw(){
+    // x=00,y=00,w=width,h=height,res=hwo many tiles in a row
+    for(GTile[] row : this.tileMap()){
+      for(GTile t : row){
+        if(!t.isFree())
+          t.draw(x+w/2-res/2,y+h/2-res/2,int(res),int(res));
+          //t.draw(res*this.tileMap()[0][0].gridPos.x,res*this.tileMap()[0][0].gridPos.y,int(res),int(res));
+      }
+    }
+  }
+  int pressedX=0;
+  int pressedY=0;
+  public GTile screenToGTile(float x, float y){
+    int tx = int((x-this.x)/this.res);
+    int ty = int((y-this.y)/this.res);
+    return null;//this.getT
+  }
+  public void mousePressed(){
+    if(!(mouseX>x&&mouseX<x+w && mouseY>y&& mouseY<y+h)) return;
+    pressedX = int(mouseX/res);
+    pressedY = int(mouseY/res);
+
+  }
+  public void mouseReleased(){
+    if(!(mouseX>x&&mouseX<x+w && mouseY>y&& mouseY<y+h)) return;
+    int x = int(mouseX/res);
+    int y = int(mouseY/res);
+    if(x==pressedX&&y==pressedY){
+      this.mouseClickedEvent(x,y);
+    }
+  }
+  public void mouseClickedEvent(int x, int y){
+
+  }
+}
+
+class GameManger{ // player1&player2
+
+}
+
+//class Bot1 extends Player{
+
+//}
+
+//class HumanPlayer extends Player{
+
+//}
+
+
+//GrassStreetUp g;
+//VisualMap myMap;
+static int screenW = 800;
+static int screenH = 600;
+void setup(){
+  size(800,600);
+  //myMap = new VisualMap();
+  g = new GrassStreetUp();
+  //myMap.placeTile(g,new PVector(0,0));
+  //myMap.placeTile(g,new PVector(0,1));
+  //myMap.placeTile(g,new PVector(1,-1));
+}
+
+void draw(){
+  //myMap.draw(0,0,width,height,5);
+}
